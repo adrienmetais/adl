@@ -1,0 +1,11 @@
+argparse
+base64
+ConfigParser
+hashlib
+re
+requests
+StringIO
+struct
+zipfile
+lxml
+cryptography >= 1.4.0
