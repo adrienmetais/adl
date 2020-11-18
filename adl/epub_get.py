@@ -4,20 +4,25 @@ from lxml import etree
 
 from xml_tools import ADEPT_NS, NSMAP, sign_xml
 import patch_epub
+import account
 
-def build_fulfillment_request(acsm_filename, config):
+def build_fulfillment_request(acsm_filename, acc):
   ff = etree.Element("{%s}fulfill" % ADEPT_NS, nsmap=NSMAP)
 
   user = etree.Element("user")
-  user.text = config.get("user", "id")
+  user.text = acc.urn
   ff.append(user)
 
-  device = etree.Element("device")
-  device.text = config.get("device", "id")
-  ff.append(device)
+  # TODO: choose appropriate device ?
+  dev = acc.devices[0]
+
+  if dev.device_id is not None:
+    device = etree.Element("device")
+    device.text = dev.device_id
+    ff.append(device)
 
   deviceType = etree.Element("deviceType")
-  deviceType.text = config.get("device", "type")
+  deviceType.text = dev.type
   ff.append(deviceType)
 
   fftoken = etree.parse(acsm_filename)
@@ -25,7 +30,9 @@ def build_fulfillment_request(acsm_filename, config):
 
   ff.append(token_root)
 
-  ff = sign_xml(ff)
+  # TODO: use correct key to sign ! (the one extracted from pkcs12)
+
+  ff = sign_xml(ff, acc.auth_key[0])
 
   operator = token_root.find("{http://ns.adobe.com/adept}operatorURL").text
   
@@ -44,9 +51,12 @@ def parse_fulfillment_reply(ff_reply):
 def get_ebook(args, config):
   logging.info("Opening {} ...".format(args.filename))
 
+  user = account.get_default_account()
+  a = account.get_account(user)
+
   # The ACSM file contains a "fulfillment URL" that we must query
   # in order to get the real file URL
-  operator, ff_request = build_fulfillment_request(args.filename, config)
+  operator, ff_request = build_fulfillment_request(args.filename, a)
 
   url = "{0}/Fulfill".format(operator)
   headers = {"Content-type": "application/vnd.adobe.adept+xml"}

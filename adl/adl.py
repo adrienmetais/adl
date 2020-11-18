@@ -19,6 +19,7 @@ import logging
 
 import login
 import epub_get
+import account
 
 if __name__ == "__main__":
   parser = argparse.ArgumentParser(description='Manipulate ACSM files')
@@ -33,6 +34,9 @@ if __name__ == "__main__":
 
   parser_get = subparsers.add_parser('login', help='Login to Content Server')
   parser_get.set_defaults(func=login.login)
+
+  parser_get = subparsers.add_parser('account', help='Manage accounts')
+  parser_get.set_defaults(func=account.cli_list)
 
   # Future options could include:
   # * Register to Adobe

@@ -14,4 +14,10 @@ create table users (
 create table devices (
   user_id text,
   device_key text,
-  device_id text);
+  device_id text,
+  fingerprint text
+);
+
+create table configuration (
+  default_user text
+);

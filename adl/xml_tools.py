@@ -20,6 +20,9 @@ import base64
 
 from crypto import RSAHandler
 
+from cryptography.hazmat.primitives.asymmetric import padding, utils
+from cryptography.hazmat.primitives import hashes
+
 BEGIN_ELEMENT=1
 END_ATTRIBUTES=2
 END_ELEMENT=3
@@ -76,11 +79,10 @@ def xml_hash(s):
   # Force big endian
   return "".join(struct.pack('>I', int(d[i*8:i*8+8], 16)) for i in range(5))
 
+# key as byte array
 def encrypt(hxml, key):
-  with open(key, 'rb') as f:
-    userkey = f.read()
-    rsa = RSAHandler(userkey)
-    sig = rsa.encrypt(hxml)
+  rsa = RSAHandler(key)
+  sig = rsa.encrypt(hxml)
 
   return sig
 
@@ -94,12 +96,17 @@ def generate_signature(xml_str, key):
   sig = encrypt(hxml, key)
   return base64.b64encode(sig)
 
-def sign_xml(element):
+def sign_xml(element, pk):
   xml_str = etree.tostring(element)
 
   signature = etree.Element("signature")
-  signature.text = generate_signature(xml_str, config.get("user", "keypath"))
+  signature.text = generate_signature(xml_str, pk)
   element.append(signature)
 
   return element
   
+def add_subelement(element, name, text):
+  e = etree.Element(name)
+  e.text = text
+  element.append(e)
+
