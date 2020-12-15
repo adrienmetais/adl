@@ -18,9 +18,15 @@ import utils
 def login(args, config):
   acc = Account()
 
-  activation_init()
-  acc.authentication_certificate = authentication_init()
-  sign_in(acc)
+  if not config.ready():
+    auth_url, userinfo_url, act_certificate = activation_init()
+    config.auth_url = auth_url
+    config.userinfo_url = userinfo_url
+    config.activation_certificate = act_certificate
+  
+    config.authentication_certificate = authentication_init()
+
+  sign_in(config, acc, args.user, args.password)
 
   activate(acc)
 
@@ -67,9 +73,6 @@ def parse_authinfo_reply(reply):
 
 ######### Activation ###########
 
-def get_expiration_date():
-  return datetime.datetime.strftime(datetime.datetime.now()+datetime.timedelta(minutes=30), "%Y-%m-%dT%H:%M:%S-00:00")
-
 def build_activation_request(acc):
   device = acc.devices[0] # TODO: better
   xml = etree.Element("{%s}activate" % ADEPT_NS, nsmap=NSMAP, attrib = {"requestType": "initial"})
@@ -79,10 +82,10 @@ def build_activation_request(acc):
   add_subelement(xml, "clientLocale", "en") # TODO: is it useful to set the real locale ?
   add_subelement(xml, "clientVersion", "ADE WIN 9,0,1131,27")
   add_subelement(xml, "nonce", utils.make_nonce())
-  add_subelement(xml, "expiration", get_expiration_date()) 
+  add_subelement(xml, "expiration", utils.get_expiration_date()) 
   add_subelement(xml, "user", acc.urn)
 
-  pk = utils.extract_pk_from_pcks12(acc, device.device_key)
+  pk = utils.extract_pk_from_pkcs12(acc, device.device_key)
   xml = sign_xml(xml, pk)
 
   return etree.tostring(xml)
@@ -111,8 +114,8 @@ def parse_activation_reply(reply):
 
 ######### Sign In ###########
 
-def build_sign_in_request(auth_data, akp, lkp):
-  xml = etree.Element("{%s}signIn" % ADEPT_NS, nsmap=NSMAP, attrib = {"method": "anonymous"})
+def build_sign_in_request(auth_data, akp, lkp, method):
+  xml = etree.Element("{%s}signIn" % ADEPT_NS, nsmap=NSMAP, attrib = {"method": method})
   add_subelement(xml, "signInData", base64.b64encode(auth_data))
   add_subelement(xml, "publicAuthKey", akp[1])
   add_subelement(xml, "encryptedPrivateAuthKey", akp[0])
@@ -124,7 +127,7 @@ def build_sign_in_request(auth_data, akp, lkp):
 def generate_device_key():
   # Not exactly sure how it is really generated in ADE
   # However as it changes each time, I am guessing it is ok to generate it randomly
-  device_key = os.urandom(16)
+  device_key = base64.b64encode(os.urandom(16))
   return device_key
 
 def generate_device_fingerprint():
@@ -136,14 +139,18 @@ def generate_device_fingerprint():
     d = h.digest()
     return base64.b64encode(d)
 
-def sign_in(acc):
+def sign_in(config, acc, user, password):
   device = Device()
   device.device_key = generate_device_key()
   device.fingerprint = generate_device_fingerprint()
   acc.devices.append(device)
 
-  # Only supported method for the moment
-  acc.sign_method = "anonymous"
+  # Only supported methods for the moment
+  if user is None or password is None:
+    acc.sign_method = "anonymous"
+  else:
+    acc.sign_method = "AdobeID"
+    acc.sign_id = user
 
   # device key
   # 0 if no username, else:
@@ -153,13 +160,26 @@ def sign_in(acc):
   #  Size of password
   #  password (UTF-8)
 
-  auth_data = [ord(i) for i in device.device_key]
-  auth_data.append(0) # null username
-  auth_data.append(0) # null password
+  binary_device_key = base64.b64decode(device.device_key)
+  auth_data = [ord(i) for i in binary_device_key]
+  if user is None:
+    auth_data.append(0) # null username
+  else:
+    # TODO: should be utf8
+    auth_data.append(len(user))
+    auth_data.extend([ord(i) for i in user])
+
+  if password is None:
+    auth_data.append(0) # null password
+  else:
+    # TODO: should be utf8
+    auth_data.append(len(password))
+    auth_data.extend([ord(i) for i in password])
+
   serialized_auth_data = "".join([chr(i) for i in auth_data])
 
   # Get certificate
-  certificate = x509.load_der_x509_certificate(base64.b64decode(acc.authentication_certificate))
+  certificate = x509.load_der_x509_certificate(base64.b64decode(config.authentication_certificate))
 
   # generate auth key pair
   acc.auth_key = utils.generate_key_pair()
@@ -172,10 +192,10 @@ def sign_in(acc):
   encrypted_auth_data = public_auth_key.encrypt(serialized_auth_data, asym_padding.PKCS1v15())
 
   # Encrypt key pairs with device key
-  encrypted_akp = (utils.aes_crypt(base64.b64decode(acc.auth_key[0]), device.device_key), acc.auth_key[1])
-  encrypted_lkp = (utils.aes_crypt(base64.b64decode(acc.license_key[0]), device.device_key), acc.license_key[1])
+  encrypted_akp = (utils.aes_crypt(base64.b64decode(acc.auth_key[0]), binary_device_key), acc.auth_key[1])
+  encrypted_lkp = (utils.aes_crypt(base64.b64decode(acc.license_key[0]), binary_device_key), acc.license_key[1])
 
-  xml_str = build_sign_in_request(encrypted_auth_data, encrypted_akp, encrypted_lkp)
+  xml_str = build_sign_in_request(encrypted_auth_data, encrypted_akp, encrypted_lkp, acc.sign_method)
   
   svc = "SignInDirect"
   url = "http://adeactivate.adobe.com/adept/"+svc

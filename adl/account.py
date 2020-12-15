@@ -3,6 +3,49 @@ import base64
 
 db_file = 'adl.db'
 
+class Config():
+  def __init__(self, db_file):
+    self.db_file = db_file
+    self.auth_url = None
+    self.userinfo_url = None
+    self.activation_certificate = None
+    self.authentication_certificate = None
+    self.current_user = None
+
+  def ready(self):
+    return self.activation_certificate is not None and self.authentication_certificate is not None
+
+  def load(self):
+    conn = sqlite3.connect(self.db_file)
+    conn.text_factory = str
+    c = conn.cursor()
+
+    rows = c.execute("select default_user, auth_url, activation_certificate, userinfo_url, authentication_certificate from configuration")
+    config = rows.fetchone()
+    self.current_user = config[0]
+    self.auth_url = config[1]
+    self.activation_certificate = config[2]
+    self.userinfo_url = config[3]
+    self.authentication_certificate = config[4]
+    
+    conn.close()
+
+  def store(self):
+    conn = sqlite3.connect(self.db_file)
+    conn.text_factory = str
+    c = conn.cursor()
+
+    values = (self.current_user,
+              self.auth_url,
+              self.activation_certificate,
+              self.userinfo_url,
+              self.authentication_certificate)
+
+    c.execute("insert into configuration (default_user, auth_url, activation_certificate, userinfo_url, authentication_certificate) values (?,?,?,?,?)", values)
+   
+    conn.commit() 
+    conn.close()
+
 class Device():
   def __init__(self):
     self.device_key = None
@@ -39,6 +82,7 @@ class Account():
 
   def store(self):
     conn = sqlite3.connect(db_file)
+    conn.text_factory = str
     c = conn.cursor()
     ph = (self.urn, 
           self.sign_id, 
@@ -55,7 +99,7 @@ class Account():
 
     for d in self.devices:
       dph = (self.urn,
-             base64.b64encode(d.device_key),
+             d.device_key,
              d.device_id,
              d.fingerprint)
     c.execute("insert into devices values(?, ?, ?, ?)", dph)
@@ -66,11 +110,12 @@ def get_all_accounts():
   accounts = []
 
   conn = sqlite3.connect(db_file)
+  conn.text_factory = str
   c = conn.cursor()
 
   # TODO: explicitely list columns
-  users = c.execute("select * from users")
-  for user in users:
+  rows = c.execute("select * from users")
+  for user in rows.fetchall():
     a = Account()
     a.urn, a.sign_id, a.sign_method, akpub, akpriv, lkpub, lkpriv, a.pkcs12, a.encryptedPK, a.licenseCertificate = user
     a.auth_key = (akpriv, akpub)
@@ -102,10 +147,26 @@ def get_default_account():
   
   return da
 
+def set_default_account(args, config):
+  urn = args.urn
+  a = get_account(urn)
+  if a is None:
+    print('Unknown user')
+    return
+  conn = sqlite3.connect(db_file)
+  c = conn.cursor()
+  c.execute("update configuration set default_user=?", (urn,))
+  conn.commit()
+  conn.close() 
+
 def cli_list(args, config):
-  print("Accounts:")
+  print("Accounts (* shows currently used account):")
   accounts = get_all_accounts()
+  default = get_default_account()
   for a in accounts:
-    print("* {} - {} ({})".format(a.urn, a.sign_id, a.sign_method))
+    marker = ' '
+    if a.urn == default:
+      marker = '*'
+    print("- {} {} - {} ({})".format(marker, a.urn, a.sign_id, a.sign_method))
 
 

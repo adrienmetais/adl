@@ -14,7 +14,6 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import argparse
-import ConfigParser
 import logging
 
 import login
@@ -23,7 +22,7 @@ import account
 
 if __name__ == "__main__":
   parser = argparse.ArgumentParser(description='Manipulate ACSM files')
-  parser.add_argument('-c', '--config', dest="configfile", help="Configuration file path", default="adedl.conf")
+  parser.add_argument('-c', '--config', dest="config_db", help="Configuration db file path", default="adl.db")
   parser.add_argument('-v', '--verbose', dest="verbose", help="Log verbosely", action="store_true", default=False)
   parser.add_argument('-n', dest="dry", help="Do not perform actions", action="store_true", default=False)
   subparsers = parser.add_subparsers(title="commands", description="available commands", help="additional help")
@@ -32,11 +31,18 @@ if __name__ == "__main__":
   parser_get.add_argument('-f', '--filename', dest="filename", required=True, help='The ACSM file')
   parser_get.set_defaults(func=epub_get.get_ebook)
 
-  parser_get = subparsers.add_parser('login', help='Login to Content Server')
-  parser_get.set_defaults(func=login.login)
+  parser_login = subparsers.add_parser('login', help='Login to Content Server')
+  parser_login.add_argument('-u', '--user', dest="user", default=None, help='The Adobe user')
+  parser_login.add_argument('-p', '--password', dest="password", default=None, help='The Adobe password')
+  parser_login.set_defaults(func=login.login)
 
-  parser_get = subparsers.add_parser('account', help='Manage accounts')
-  parser_get.set_defaults(func=account.cli_list)
+  parser_account = subparsers.add_parser('account', help='Manage accounts')
+  account_sp = parser_account.add_subparsers()
+  parser_alist = account_sp.add_parser('list', help='list accounts')
+  parser_alist.set_defaults(func=account.cli_list)
+  parser_aset = account_sp.add_parser('use', help='Set account to use')
+  parser_aset.add_argument('urn', help='The user urn')
+  parser_aset.set_defaults(func=account.set_default_account)
 
   # Future options could include:
   # * Register to Adobe
@@ -52,11 +58,11 @@ if __name__ == "__main__":
   if args.verbose:
     loglevel = logging.DEBUG
   else:
-    loglevel = logging.WARN
+    loglevel = logging.INFO
   logging.basicConfig(format='%(levelname)s:%(message)s', level=loglevel)
 
-  config = ConfigParser.RawConfigParser()
-  config.read(args.configfile)
+  config = account.Config(args.config_db)
+  config.load()
 
   # Call appropriate handler
   args.func(args, config)

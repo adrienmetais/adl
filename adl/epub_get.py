@@ -2,41 +2,100 @@ import logging
 import requests
 from lxml import etree
 
-from xml_tools import ADEPT_NS, NSMAP, sign_xml
+from xml_tools import ADEPT_NS, NSMAP, sign_xml, add_subelement
+import utils
 import patch_epub
 import account
+import base64
 
-def build_fulfillment_request(acsm_filename, acc):
-  ff = etree.Element("{%s}fulfill" % ADEPT_NS, nsmap=NSMAP)
-
-  user = etree.Element("user")
-  user.text = acc.urn
-  ff.append(user)
-
-  # TODO: choose appropriate device ?
-  dev = acc.devices[0]
-
-  if dev.device_id is not None:
-    device = etree.Element("device")
-    device.text = dev.device_id
-    ff.append(device)
-
-  deviceType = etree.Element("deviceType")
-  deviceType.text = dev.type
-  ff.append(deviceType)
-
+def parse_acsm(acsm_filename):
   fftoken = etree.parse(acsm_filename)
   token_root = fftoken.getroot()
 
-  ff.append(token_root)
-
-  # TODO: use correct key to sign ! (the one extracted from pkcs12)
-
-  ff = sign_xml(ff, acc.auth_key[0])
-
   operator = token_root.find("{http://ns.adobe.com/adept}operatorURL").text
-  
-  return (operator, etree.tostring(ff))
+
+  return operator, token_root
+
+def build_fulfillment_auth(acc, config):
+  ff = etree.Element("{%s}credentials" % ADEPT_NS, nsmap=NSMAP)
+  add_subelement(ff, "user", acc.urn)
+
+  # TODO: choose appropriate device ?
+  dev = acc.devices[0]
+  certificate = utils.extract_cert_from_pkcs12(acc, dev.device_key)
+  add_subelement(ff, "certificate", base64.b64encode(certificate))
+  add_subelement(ff, "licenseCertificate", acc.licenseCertificate)
+  add_subelement(ff, "authenticationCertificate", config.authentication_certificate)
+  return etree.tostring(ff)
+
+def build_license_request(operator, acc):
+  ff = etree.Element("{%s}licenseServiceRequest" % ADEPT_NS, nsmap=NSMAP, attrib = {"identity": "user"})
+  add_subelement(ff, "operatorURL", operator)
+  add_subelement(ff, "nonce", utils.make_nonce())
+  add_subelement(ff, "expiration", utils.get_expiration_date())
+  add_subelement(ff, "user", acc.urn)
+
+  dev = acc.devices[0]
+  pk = utils.extract_pk_from_pkcs12(acc, dev.device_key)
+  ff = sign_xml(ff, pk)
+
+  return etree.tostring(ff)
+
+def get_error(xml):
+  tree_root = etree.fromstring(xml)
+  if 'error' in tree_root.tag:
+    return tree_root.get('data')
+  return None
+
+def send(url, data_str, dry_mode):
+  headers = {'content-type': 'application/vnd.adobe.adept+xml'}
+  logging.info(data_str)
+
+  if dry_mode:
+    logging.info("(Dry run - Not sent)")
+    return 
+
+  try:
+    r = requests.post(url, data=data_str, headers=headers)
+    r.raise_for_status()
+    reply = r.text
+  except Exception:
+    logging.error("Error when targeting {}".format(url))
+    return None
+
+  logging.info(reply)
+  return reply
+
+def log_in(config, acc, operator, dry_mode):
+  xmlstr = build_fulfillment_auth(acc, config)
+  url = "{}/Auth".format(operator)
+  reply = send(url, xmlstr, dry_mode)
+  if dry_mode or (reply is not None and "success" in reply):
+    xmlstr = build_license_request(operator, acc)
+    url = "http://adeactivate.adobe.com/adept/InitLicenseService"
+    reply = send(url, xmlstr, dry_mode)
+    return dry_mode or (reply is not None and "success" in reply)
+  else:
+    logging.info(get_error(reply))
+    return False
+
+def build_fulfillment_request(acsm_content, acc):
+  # TODO: choose appropriate device ?
+  dev = acc.devices[0]
+
+  ff = etree.Element("{%s}fulfill" % ADEPT_NS, nsmap=NSMAP)
+  add_subelement(ff, "user", acc.urn)
+
+  if dev.device_id is not None:
+    add_subelement(ff, "device", dev.device_id)
+    add_subelement(ff, "deviceType", dev.type)
+
+  ff.append(acsm_content)
+
+  pk = utils.extract_pk_from_pkcs12(acc, dev.device_key)
+  ff = sign_xml(ff, pk)
+
+  return etree.tostring(ff)
 
 def parse_fulfillment_reply(ff_reply):
   tree_root = etree.fromstring(ff_reply)
@@ -56,28 +115,22 @@ def get_ebook(args, config):
 
   # The ACSM file contains a "fulfillment URL" that we must query
   # in order to get the real file URL
-  operator, ff_request = build_fulfillment_request(args.filename, a)
+  operator, acsm_content = parse_acsm(args.filename)
+
+  if not log_in(config, a, operator, args.dry):
+    logging.info("Failed to init license")
+    return
+
+  ff_request = build_fulfillment_request(acsm_content, a)
 
   url = "{0}/Fulfill".format(operator)
   headers = {"Content-type": "application/vnd.adobe.adept+xml"}
   logging.info("Sending fullfilment request to {}".format(url))
-  logging.debug(ff_request)
+
+  ff_reply = send(url, ff_request, args.dry)
 
   if args.dry:
-    print(ff_request)
-    print("(Dry run - Not sent)")
-    return 
-
-  try:
-    # Send the fulfillment request
-    r = requests.post(url, data=ff_request, headers=headers)
-    r.raise_for_status()
-    ff_reply = r.text
-  except Exception:
-    logging.error("Error during fulfillment phase when targeting {}".format(url))
     return
-
-  logging.debug(ff_reply)
  
   try: 
     title, ebook_url, license_token = parse_fulfillment_reply(ff_reply)
@@ -114,4 +167,4 @@ def get_ebook(args, config):
     logging.error("Could not write file {}: {}".format(filename, e.message))
     return
 
-  print("Successfully downloaded file", filename)
+  logging.info("Successfully downloaded file", filename)

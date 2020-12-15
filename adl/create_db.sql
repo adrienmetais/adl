@@ -19,5 +19,8 @@ create table devices (
 );
 
 create table configuration (
-  default_user text
+  default_user text,
+  auth_url text, 
+  activation_certificate text, 
+  userinfo_url text
 );
