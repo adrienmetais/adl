@@ -1,3 +1,4 @@
+#!/usr/bin/env python
 
 # Copyright (C) 2020
 # This program is free software: you can redistribute it and/or modify
@@ -32,8 +33,7 @@ if __name__ == "__main__":
   parser_get.set_defaults(func=epub_get.get_ebook)
 
   parser_login = subparsers.add_parser('login', help='Login to Content Server')
-  parser_login.add_argument('-u', '--user', dest="user", default=None, help='The Adobe user')
-  parser_login.add_argument('-p', '--password', dest="password", default=None, help='The Adobe password')
+  parser_login.add_argument('-u', '--user', dest="user", default=None, help='Login with this Adobe ID')
   parser_login.set_defaults(func=login.login)
 
   parser_account = subparsers.add_parser('account', help='Manage accounts')

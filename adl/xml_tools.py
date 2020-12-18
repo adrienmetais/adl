@@ -110,3 +110,9 @@ def add_subelement(element, name, text):
   e.text = text
   element.append(e)
 
+def get_error(xml):
+  tree_root = etree.fromstring(xml)
+  if 'error' in tree_root.tag:
+    return tree_root.get('data')
+  return None
+

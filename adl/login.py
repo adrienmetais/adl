@@ -5,18 +5,22 @@ import base64
 import datetime
 import struct
 import hashlib
+import getpass
 
 from cryptography.hazmat.primitives.asymmetric import padding as asym_padding
 from cryptography import x509
 
 from lxml import etree
 
-from xml_tools import ADEPT_NS, NSMAP, sign_xml, add_subelement
+from xml_tools import ADEPT_NS, NSMAP, sign_xml, add_subelement, get_error
 from account import Account, Device
 import utils
 
+# TODO: enforce dry mode
 def login(args, config):
   acc = Account()
+  if args.user is not None:
+    password = getpass.getpass()
 
   if not config.ready():
     auth_url, userinfo_url, act_certificate = activation_init()
@@ -26,7 +30,9 @@ def login(args, config):
   
     config.authentication_certificate = authentication_init()
 
-  sign_in(config, acc, args.user, args.password)
+  if not sign_in(config, acc, args.user, password):
+    print('Sign in error')
+    return
 
   activate(acc)
 
@@ -203,9 +209,16 @@ def sign_in(config, acc, user, password):
     headers = {'content-type': 'application/vnd.adobe.adept+xml'}
     r = requests.post(url, data = xml_str, headers = headers)
     r.raise_for_status()
+    if 'error' in r.text:
+      error = get_error(r.text)
+      logging.error(error)
+      return False
+
     acc.urn, acc.pkcs12, acc.encryptedPK, acc.licenseCertificate = parse_signin_reply(r.text)
   except Exception:
     logging.exception("Could not contact activation server")
+
+  return True
 
 def parse_signin_reply(reply):
   tree_root = etree.fromstring(reply)

@@ -2,7 +2,7 @@ import logging
 import requests
 from lxml import etree
 
-from xml_tools import ADEPT_NS, NSMAP, sign_xml, add_subelement
+from xml_tools import ADEPT_NS, NSMAP, sign_xml, add_subelement, get_error
 import utils
 import patch_epub
 import account
@@ -40,12 +40,6 @@ def build_license_request(operator, acc):
   ff = sign_xml(ff, pk)
 
   return etree.tostring(ff)
-
-def get_error(xml):
-  tree_root = etree.fromstring(xml)
-  if 'error' in tree_root.tag:
-    return tree_root.get('data')
-  return None
 
 def send(url, data_str, dry_mode):
   headers = {'content-type': 'application/vnd.adobe.adept+xml'}
@@ -167,4 +161,4 @@ def get_ebook(args, config):
     logging.error("Could not write file {}: {}".format(filename, e.message))
     return
 
-  logging.info("Successfully downloaded file", filename)
+  logging.info("Successfully downloaded file {}".format(filename))
