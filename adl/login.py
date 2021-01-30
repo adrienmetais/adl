@@ -19,6 +19,7 @@ import utils
 # TODO: enforce dry mode
 def login(args, config):
   acc = Account()
+  password = None
   if args.user is not None:
     password = getpass.getpass()
 
@@ -154,6 +155,7 @@ def sign_in(config, acc, user, password):
   # Only supported methods for the moment
   if user is None or password is None:
     acc.sign_method = "anonymous"
+    logging.warning("WARNING: logging in as anonymous - please see README for risks")
   else:
     acc.sign_method = "AdobeID"
     acc.sign_id = user

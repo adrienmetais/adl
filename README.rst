@@ -29,11 +29,13 @@ This tool is suited above all to my purpose. It has not been tested extensively,
 How to use
 ==========
 
+For the moment, you need to call the adl.py script from the same repository. I'll work on that when I have some time.
+
 Login
 -----
 Use::
 
-  ./adl.py login 
+  ./adl.py login <-u adobeID>
 
 You only need to login once, to exchange encryption keys.
 
