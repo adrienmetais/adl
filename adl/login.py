@@ -18,29 +18,32 @@ import utils
 import device
 
 # TODO: enforce dry mode
-def login(args, config):
+def login(args, data):
   acc = Account()
   password = None
   if args.user is not None:
     password = getpass.getpass()
 
-  if not config.ready():
-    auth_url, userinfo_url, act_certificate = activation_init()
-    config.auth_url = auth_url
-    config.userinfo_url = userinfo_url
-    config.activation_certificate = act_certificate
-  
-    config.authentication_certificate = authentication_init()
+  if data.config is None:
+    data.config = Config()
 
-  if not sign_in(config, acc, args.user, password):
-    print('Sign in error')
+  if not data.config.ready():
+    data.config.auth_url, data.config.userinfo_url, data.config.activation_certificate = activation_init()
+    data.config.authentication_certificate = authentication_init()
+    data.store_config()
+
+  if not sign_in(data, acc, args.user, password):
+    logging.error('Sign in error')
     return
 
+  # Activate this computer
   d = acc.get_device('local')
   device.activate(acc, d)
 
   # Store
-  acc.store()
+  data.add_account(acc)
+  data.add_device(acc.urn, d)
+  data.set_current_account(acc.urn)
 
 ########### Activation Info ############
 
@@ -92,11 +95,10 @@ def build_sign_in_request(auth_data, akp, lkp, method):
 
   return etree.tostring(xml)
 
-def sign_in(config, acc, user, password):
+def sign_in(data, acc, user, password):
   d = device.Device()
   d.device_key = device.generate_device_key()
   d.fingerprint = device.generate_device_fingerprint()
-  acc.devices.append(d)
 
   # Only supported methods for the moment
   if user is None or password is None:
@@ -133,7 +135,7 @@ def sign_in(config, acc, user, password):
   serialized_auth_data = "".join([chr(i) for i in auth_data])
 
   # Get certificate
-  certificate = x509.load_der_x509_certificate(base64.b64decode(config.authentication_certificate))
+  certificate = x509.load_der_x509_certificate(base64.b64decode(data.config.authentication_certificate))
 
   # generate auth key pair
   acc.auth_key = utils.generate_key_pair()

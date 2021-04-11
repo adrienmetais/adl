@@ -24,30 +24,14 @@ class Device():
   def __str__(self):
     return "{}: {} ({})".format(self.name, self.type, self.fingerprint)
 
-def get_all_devices(account_urn):
-  devices = []
-
-  conn = sqlite3.connect(db_file)
-  conn.text_factory = str
-  c = conn.cursor()
-
-  rows = c.execute("select device_name, device_key, device_id, fingerprint, device_type from devices where user_id=?", (account_urn,))
-  for device in rows.fetchall():
-    d = Device()
-    d.name, d.device_key, d.device_id, d.fingerprint, d.type = device
-    devices.append(d)
-
-  conn.close()
-
-  return devices
-
-def device_list(args, config):
+def device_list(args, data):
   print("Known devices:")
-  default = account.get_default_account()
-  devices = get_all_devices(default)
-  for d in devices:
-    print("-  {} {} - {} ".format(d.name, d.device_id, d.type))
-  pass
+  a = data.get_current_account()
+  if a is not None:
+    for d in a.devices:
+      print("-  {} {} - {} ".format(d.name, d.device_id, d.type))
+  else:
+    print "No registered device"
 
 ######### Activation ###########
 
@@ -84,7 +68,7 @@ def generate_device_fingerprint():
     return base64.b64encode(d)
 
 def activate(acc, d):
-  # Activate this computer
+  # Activate this device
   xml_str = build_activation_request(acc, d)
 
   svc = "Activate"
@@ -137,9 +121,9 @@ def read_activation_file(mountpoint):
 
       logging.info("This device is already activated for user {}".format(username))
       return username, plk, device_id
-  except Exception as e:
-    print(e)
-    logging.info("Activation file not found")
+  except Exception:
+    logging.info("Activation data not found")
+
   return None, None, None
 
 def write_activation_file(mountpoint, content):
@@ -147,22 +131,24 @@ def write_activation_file(mountpoint, content):
     with open("{}/.adobe-digital-editions/activation.xml".format(mountpoint), "w") as activation_file:
       activation_file.write(content)
   except Exception:
-    print("Error while updating device !")
+    logging.exception("Error while updating device !")
     return False
 
   return True
 
-def device_register(args, config):
+def device_register(args, data):
   print("Looking for ADEPT support on {}".format(args.mountpoint))
   d = read_device_file(args.mountpoint)
   if d is None:
+    logging.error("This device does not seem to support ADEPT DRM")
     return
 
-  default = account.get_default_account()
-  acc     = account.get_account(default)
-  
+  current_account = data.get_current_account()
+  if current_account is None:
+    logging.error("Please log in with a user and select it first")
+
   # Check it is not already in our db
-  devices = get_all_devices(default)
+  devices = current_account.devices
   for device in devices:
     if device.fingerprint == d.fingerprint:
       print("Device already exists in the DB")
@@ -170,35 +156,35 @@ def device_register(args, config):
 
   # Check if it is not already activated
   username, plk, device_id = read_activation_file(args.mountpoint)
+
   if username is not None and plk is not None:
     # Already activated
-    a = account.find_by_sign(username)
+    a = data.find_account_by_sign(username)
     if a is not None:
       if a.get_private_key() == plk:
         # Activated by a known user
         logging.info("Device is already activated for user {} but is not known by adl, registering it".format(username))
         d.device_id = device_id
-        a.devices.append(d)
-        a.store()
+        data.add_device(a.urn, d)
         return
 
     logging.error("Device is already activated for an unknown user. Doing nothing or all books on the device will become unreadable")
     return 
 
   # Activate device
-  print("Activating device ...")
-  reply = activate(acc, d)
+  logging.info("Activating device ...")
+  reply = activate(current_account, d)
   if reply is None:
-    print("Activation failed")
+    logging.error("Activation failed")
     return
 
   # Store file in the device
-  activation_file_content = build_activation_file(acc, reply, config)
-  print(activation_file_content)
+  activation_file_content = build_activation_file(current_account, reply, data.config)
+  logging.debug(activation_file_content)
 
   if write_activation_file(args.mountpoint, activation_file_content):
     # Store info in db
-    acc.store()
+    data.add_device(current_account.urn, d)
     print("Activation successful")
   else:
     print("Error while writing activation file")

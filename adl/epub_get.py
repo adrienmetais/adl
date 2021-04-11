@@ -101,17 +101,19 @@ def parse_fulfillment_reply(ff_reply):
   title = metadata.find("{http://purl.org/dc/elements/1.1/}title").text
   return (title, ebook_url, etree.tostring(license))
 
-def get_ebook(args, config):
+def get_ebook(args, data):
   logging.info("Opening {} ...".format(args.filename))
 
-  user = account.get_default_account()
-  a = account.get_account(user)
+  a = data.get_current_account()
+  if a is None:
+    logging.error("Please log in with a user and select it first")
+    return
 
   # The ACSM file contains a "fulfillment URL" that we must query
   # in order to get the real file URL
   operator, acsm_content = parse_acsm(args.filename)
 
-  if not log_in(config, a, operator, args.dry):
+  if not log_in(data.config, a, operator, args.dry):
     logging.info("Failed to init license")
     return
 

@@ -16,15 +16,16 @@
 
 import argparse
 import logging
+import sys
 
 import login
 import epub_get
 import account
 import device
+from db import DBData
 
 if __name__ == "__main__":
   parser = argparse.ArgumentParser(description='Manipulate ACSM files')
-  parser.add_argument('-c', '--config', dest="config_db", help="Configuration db file path", default="adl.db")
   parser.add_argument('-v', '--verbose', dest="verbose", help="Log verbosely", action="store_true", default=False)
   parser.add_argument('-n', dest="dry", help="Do not perform actions", action="store_true", default=False)
   subparsers = parser.add_subparsers(title="commands", description="available commands", help="additional help")
@@ -41,6 +42,9 @@ if __name__ == "__main__":
   account_sp = parser_account.add_subparsers()
   parser_alist = account_sp.add_parser('list', help='list accounts')
   parser_alist.set_defaults(func=account.cli_list)
+  parser_adel = account_sp.add_parser('delete', help='delete account (be careful !)')
+  parser_adel.add_argument('urn', help='The user urn')
+  parser_adel.set_defaults(func=account.account_delete)
   parser_aset = account_sp.add_parser('use', help='Set account to use')
   parser_aset.add_argument('urn', help='The user urn')
   parser_aset.set_defaults(func=account.set_default_account)
@@ -70,9 +74,14 @@ if __name__ == "__main__":
     loglevel = logging.INFO
   logging.basicConfig(format='%(levelname)s:%(message)s', level=loglevel)
 
-  config = account.Config(args.config_db)
-  config.load()
+  data = DBData()
+
+  if not data.check_or_create_dir():
+    logging.error("Error accessing data directory !")
+    sys.exit(1)
+
+  data.load()
 
   # Call appropriate handler
-  args.func(args, config)
+  args.func(args, data)
 

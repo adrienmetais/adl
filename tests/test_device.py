@@ -1,4 +1,4 @@
-from context import account, utils, login, device
+from context import account, utils, login, device, db
 from mock import patch, MagicMock, Mock, mock_open
 import unittest
 import base64
@@ -17,7 +17,7 @@ class TestDevice(unittest.TestCase):
 
     activationToken = "<activationToken></activationToken>"
 
-    conf = account.Config("toto")
+    conf = account.Config()
     conf.auth_url = 'authurl'
     conf.userinfo_url = 'userinfourl'
     conf.activation_certificate = 'ACT_CERTIFICATE'
@@ -56,45 +56,47 @@ class TestDevice(unittest.TestCase):
     args = argparse.Namespace()
     args.mountpoint = './fake_device'
 
-    conf = account.Config("toto")
+    conf = account.Config()
     conf.auth_url = 'authurl'
     conf.userinfo_url = 'userinfourl'
     conf.activation_certificate = 'ACT_CERTIFICATE'
     conf.authentication_certificate = 'AUTH_CERTIFICATE'
+    conf.current_user = "toto"
 
     default_account = account.Account()
     default_account.urn = "toto"
     default_account.sign_id = "toto@adobe.com"
     default_account.sign_method = "AdobeID"
 
-    # Mock methods
-    backup = account.get_default_account, account.get_account, device.get_all_devices, default_account.get_private_key, default_account.store, device.read_device_file, device.read_activation_file, device.build_activation_file, device.write_activation_file
+    data = db.DBData()
+    data.config = conf
+    data.accounts = [default_account]
 
-    account.get_default_account = MagicMock(return_value="default")
-    account.get_account = MagicMock(return_value=default_account)
+    # Mock methods
+    backup = data.add_device, default_account.get_private_key, device.read_device_file, device.read_activation_file, device.build_activation_file, device.write_activation_file
 
     default_account.get_private_key = MagicMock(return_value="SuperSecretKey")
-    default_account.store = MagicMock()
+    data.add_device = MagicMock()
 
     d = device.Device()
-    device.get_all_devices = MagicMock(return_value=[])
     device.read_device_file = MagicMock(return_value=d)
     device.read_activation_file = MagicMock(return_value=(None, None, None))
     device.build_activation_file = MagicMock(return_value="content")
     device.write_activation_file = MagicMock(return_value=True)
 
     # Test method
-    device.device_register(args, conf)
+    device.device_register(args, data)
 
     device.read_device_file.assert_called_with(args.mountpoint)
     device.read_activation_file.assert_called_with(args.mountpoint)
     device.build_activation_file.assert_called()
     device.write_activation_file.assert_called_with(args.mountpoint, "content")
+    data.add_device.assert_called()
 
     device.activate.assert_called()
 
     # restore methods
-    account.get_default_account, account.get_account, device.get_all_devices, default_account.get_private_key, default_account.store, device.read_device_file, device.read_activation_file, device.build_activation_file, device.write_activation_file = backup
+    data.add_device, default_account.get_private_key, device.read_device_file, device.read_activation_file, device.build_activation_file, device.write_activation_file = backup
 
   def test_activate(self):
     a = account.Account()
