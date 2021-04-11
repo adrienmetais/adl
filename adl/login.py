@@ -16,6 +16,7 @@ from xml_tools import ADEPT_NS, NSMAP, sign_xml, add_subelement, get_error
 from account import Account
 import utils
 import device
+from api_call import Activate, ActivationInit, AuthenticationInit, SignInDirect
 
 # TODO: enforce dry mode
 def login(args, data):
@@ -48,57 +49,21 @@ def login(args, data):
 ########### Activation Info ############
 
 def activation_init():
-  svc = "ActivationServiceInfo"
-  url = "http://adeactivate.adobe.com/adept/"+svc
-  try:
-    r = requests.get(url)
-    r.raise_for_status()
-    return parse_activationinfo_reply(r.text)
-  except Exception:
-    logging.exception("Could not contact activation server")
-    return None, None, None
-
-def parse_activationinfo_reply(reply):
-  tree_root = etree.fromstring(reply)
-  auth_url = tree_root.find("{http://ns.adobe.com/adept}authURL").text
-  userinfo_url = tree_root.find("{http://ns.adobe.com/adept}userInfoURL").text
-  activation_certificate = tree_root.find("{http://ns.adobe.com/adept}certificate").text
-  return auth_url, userinfo_url, activation_certificate
+  actinit = ActivationInit()
+  return actinit.call(False)
 
 ########## Auth Info ###########
 
 def authentication_init():
-  svc = "AuthenticationServiceInfo"
-  url = "http://adeactivate.adobe.com/adept/"+svc
-  try:
-    r = requests.get(url)
-    r.raise_for_status()
-    return parse_authinfo_reply(r.text)
-  except Exception:
-    logging.exception("Could not contact authentication server")
-    return None
-
-def parse_authinfo_reply(reply):
-  tree_root = etree.fromstring(reply)
-  auth_certificate = tree_root.find("{http://ns.adobe.com/adept}certificate").text
-  return auth_certificate
+  authinit = AuthenticationInit()
+  return authinit.call(False)
 
 ######### Sign In ###########
 
-def build_sign_in_request(auth_data, akp, lkp, method):
-  xml = etree.Element("{%s}signIn" % ADEPT_NS, nsmap=NSMAP, attrib = {"method": method})
-  add_subelement(xml, "signInData", base64.b64encode(auth_data))
-  add_subelement(xml, "publicAuthKey", akp[1])
-  add_subelement(xml, "encryptedPrivateAuthKey", akp[0])
-  add_subelement(xml, "publicLicenseKey", lkp[1])
-  add_subelement(xml, "encryptedPrivateLicenseKey", lkp[0])
-
-  return etree.tostring(xml)
-
 def sign_in(data, acc, user, password):
   d = device.Device()
-  d.device_key = device.generate_device_key()
-  d.fingerprint = device.generate_device_fingerprint()
+  d.generate_key()
+  d.generate_fingerprint()
 
   # Only supported methods for the moment
   if user is None or password is None:
@@ -151,30 +116,8 @@ def sign_in(data, acc, user, password):
   encrypted_akp = (utils.aes_crypt(base64.b64decode(acc.auth_key[0]), binary_device_key), acc.auth_key[1])
   encrypted_lkp = (utils.aes_crypt(base64.b64decode(acc.license_key[0]), binary_device_key), acc.license_key[1])
 
-  xml_str = build_sign_in_request(encrypted_auth_data, encrypted_akp, encrypted_lkp, acc.sign_method)
-  
-  svc = "SignInDirect"
-  url = "http://adeactivate.adobe.com/adept/"+svc
-  try:
-    headers = {'content-type': 'application/vnd.adobe.adept+xml'}
-    r = requests.post(url, data = xml_str, headers = headers)
-    r.raise_for_status()
-    if 'error' in r.text:
-      error = get_error(r.text)
-      logging.error(error)
-      return False
+  signin = SignInDirect(acc.sign_method, encrypted_auth_data, encrypted_akp, encrypted_lkp)
+  success, acc.urn, acc.pkcs12, acc.encryptedPK, acc.licenseCertificate = signin.call(False) #TODO dry mode
 
-    acc.urn, acc.pkcs12, acc.encryptedPK, acc.licenseCertificate = parse_signin_reply(r.text)
-  except Exception:
-    logging.exception("Could not contact activation server")
-
-  return True
-
-def parse_signin_reply(reply):
-  tree_root = etree.fromstring(reply)
-  user = tree_root.find("{http://ns.adobe.com/adept}user").text
-  pkcs12 = tree_root.find("{http://ns.adobe.com/adept}pkcs12").text
-  epk = tree_root.find("{http://ns.adobe.com/adept}encryptedPrivateLicenseKey").text
-  lcert = tree_root.find("{http://ns.adobe.com/adept}licenseCertificate").text
-  return (user, pkcs12, epk, lcert)
+  return success
 

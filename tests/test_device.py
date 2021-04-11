@@ -1,4 +1,4 @@
-from context import account, utils, login, device, db
+from context import account, utils, login, device, db, api_call
 from mock import patch, MagicMock, Mock, mock_open
 import unittest
 import base64
@@ -50,11 +50,10 @@ class TestDevice(unittest.TestCase):
     h.write.assert_called_once_with(content)
 
   def test_activate_device(self):
-    device.activate = MagicMock(return_value="<activationToken></activationToken>")
-
     # Mock data
     args = argparse.Namespace()
     args.mountpoint = './fake_device'
+    args.dry = False
 
     conf = account.Config()
     conf.auth_url = 'authurl'
@@ -72,13 +71,16 @@ class TestDevice(unittest.TestCase):
     data.config = conf
     data.accounts = [default_account]
 
+    d = device.Device()
+
     # Mock methods
-    backup = data.add_device, default_account.get_private_key, device.read_device_file, device.read_activation_file, device.build_activation_file, device.write_activation_file
+    backup = device.activate, data.add_device, default_account.get_private_key, device.read_device_file, device.read_activation_file, device.build_activation_file, device.write_activation_file
+
+    device.activate = MagicMock(return_value="<activationToken></activationToken>")
 
     default_account.get_private_key = MagicMock(return_value="SuperSecretKey")
     data.add_device = MagicMock()
 
-    d = device.Device()
     device.read_device_file = MagicMock(return_value=d)
     device.read_activation_file = MagicMock(return_value=(None, None, None))
     device.build_activation_file = MagicMock(return_value="content")
@@ -96,7 +98,7 @@ class TestDevice(unittest.TestCase):
     device.activate.assert_called()
 
     # restore methods
-    data.add_device, default_account.get_private_key, device.read_device_file, device.read_activation_file, device.build_activation_file, device.write_activation_file = backup
+    device.activate, data.add_device, default_account.get_private_key, device.read_device_file, device.read_activation_file, device.build_activation_file, device.write_activation_file = backup
 
   def test_activate(self):
     a = account.Account()
@@ -108,14 +110,18 @@ class TestDevice(unittest.TestCase):
     a.devices.append(d)
     utils.make_nonce = MagicMock(return_value="0rTl6wAAAAA=")
     utils.get_expiration_date = MagicMock(return_value="2020-11-16T21:47:52-00:00")
-    xml = device.build_activation_request(a, d)
+    act = api_call.Activate(a, d)
+    xml = act.build()
     expected = '<activate xmlns="http://ns.adobe.com/adept" requestType="initial"><fingerprint>dG90bw==</fingerprint><deviceType>standalone</deviceType><clientOS>Windows Vista</clientOS><clientLocale>en</clientLocale><clientVersion>ADE WIN 9,0,1131,27</clientVersion><nonce>0rTl6wAAAAA=</nonce><expiration>2020-11-16T21:47:52-00:00</expiration><user/><signature>GqUb3mNBC9H/OGCINWxrVwlgQlKo0qHMyXppWsQyxmT02R5wKid1Ce8J3gJWWzC0HdRWh9NPxNCdY4WCCN7iBRSCzNAd3S18SqHtLgJdOkhbUJd9t1SaymuLKDfCRXzKBb2IQZj0ue1YGQDNJB7jVSlU9g87MOrIydB6sCaNCYc=</signature></activate>'
     self.assertEqual(xml, expected)
 
   def test_parse_activation_reply(self):
+    d = device.Device()
+    act = api_call.Activate(None, d)
     reply = '<activationToken xmlns="http://ns.adobe.com/adept"><device>urn:uuid:a9d8548e-fc74-462a-9551-913ef3b27493</device><fingerprint>yvKBQhD7vweOkx6YVI4pQhhoDn0=</fingerprint><deviceType>standalone</deviceType><activationURL>http://adeactivate.adobe.com/adept</activationURL><user>urn:uuid:06ff762f-e588-4133-8345-b6580dfecd56</user><signature>jWDdUVAbHVsL2oZL25km36VabXO8a8DRQUP0d8PkB2zksnSOk+Sz7T56k29Icxz65SfvfXswx9OkztNP+kHuCpIeK3iXA1U8KWUyQzvPhCpbbvu472A4Sm7bKG3hvoojCRa9/4uqTOn37jRAXozeQYI5sAizMkpgmtHIXH3BGhs=</signature></activationToken>'
-    device_id = device.parse_activation_reply(reply)
-    self.assertEqual(device_id, "urn:uuid:a9d8548e-fc74-462a-9551-913ef3b27493")
+    #device_id = device.parse_activation_reply(reply)
+    act.parse(reply)
+    self.assertEqual(d.device_id, "urn:uuid:a9d8548e-fc74-462a-9551-913ef3b27493")
 
   
 if __name__ == '__main__':

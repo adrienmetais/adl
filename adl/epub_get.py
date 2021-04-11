@@ -8,6 +8,8 @@ import patch_epub
 import account
 import base64
 
+from api_call import FFAuth, InitLicense, Fulfillment
+
 def parse_acsm(acsm_filename):
   fftoken = etree.parse(acsm_filename)
   token_root = fftoken.getroot()
@@ -16,90 +18,17 @@ def parse_acsm(acsm_filename):
 
   return operator, token_root
 
-def build_fulfillment_auth(acc, config):
-  ff = etree.Element("{%s}credentials" % ADEPT_NS, nsmap=NSMAP)
-  add_subelement(ff, "user", acc.urn)
-
-  # TODO: choose appropriate device ?
-  dev = acc.devices[0]
-  certificate = utils.extract_cert_from_pkcs12(acc, dev.device_key)
-  add_subelement(ff, "certificate", base64.b64encode(certificate))
-  add_subelement(ff, "licenseCertificate", acc.licenseCertificate)
-  add_subelement(ff, "authenticationCertificate", config.authentication_certificate)
-  return etree.tostring(ff)
-
-def build_license_request(operator, acc):
-  ff = etree.Element("{%s}licenseServiceRequest" % ADEPT_NS, nsmap=NSMAP, attrib = {"identity": "user"})
-  add_subelement(ff, "operatorURL", operator)
-  add_subelement(ff, "nonce", utils.make_nonce())
-  add_subelement(ff, "expiration", utils.get_expiration_date())
-  add_subelement(ff, "user", acc.urn)
-
-  dev = acc.devices[0]
-  pk = utils.extract_pk_from_pkcs12(acc, dev.device_key)
-  ff = sign_xml(ff, pk)
-
-  return etree.tostring(ff)
-
-def send(url, data_str, dry_mode):
-  headers = {'content-type': 'application/vnd.adobe.adept+xml'}
-  logging.info(data_str)
-
-  if dry_mode:
-    logging.info("(Dry run - Not sent)")
-    return 
-
-  try:
-    r = requests.post(url, data=data_str, headers=headers)
-    r.raise_for_status()
-    reply = r.text
-  except Exception:
-    logging.error("Error when targeting {}".format(url))
-    return None
-
-  logging.info(reply)
-  return reply
-
 def log_in(config, acc, operator, dry_mode):
-  xmlstr = build_fulfillment_auth(acc, config)
-  url = "{}/Auth".format(operator)
-  reply = send(url, xmlstr, dry_mode)
-  if dry_mode or (reply is not None and "success" in reply):
-    xmlstr = build_license_request(operator, acc)
-    url = "http://adeactivate.adobe.com/adept/InitLicenseService"
-    reply = send(url, xmlstr, dry_mode)
-    return dry_mode or (reply is not None and "success" in reply)
+  ffauth = FFAuth(operator, acc, config)
+  result = ffauth.call(dry_mode)
+
+  if dry_mode or result:
+    init_license = InitLicense(operator, acc)
+    result = init_license.call(dry_mode)
+    return dry_mode or result
   else:
     logging.info(get_error(reply))
     return False
-
-def build_fulfillment_request(acsm_content, acc):
-  # TODO: choose appropriate device ?
-  dev = acc.get_device('local')
-
-  ff = etree.Element("{%s}fulfill" % ADEPT_NS, nsmap=NSMAP)
-  add_subelement(ff, "user", acc.urn)
-
-  if dev.device_id is not None:
-    add_subelement(ff, "device", dev.device_id)
-    add_subelement(ff, "deviceType", dev.type)
-
-  ff.append(acsm_content)
-
-  pk = utils.extract_pk_from_pkcs12(acc, dev.device_key)
-  ff = sign_xml(ff, pk)
-
-  return etree.tostring(ff)
-
-def parse_fulfillment_reply(ff_reply):
-  tree_root = etree.fromstring(ff_reply)
-  ff = tree_root.find("{http://ns.adobe.com/adept}fulfillmentResult")
-  rii = ff.find("{http://ns.adobe.com/adept}resourceItemInfo")
-  license = rii.find("{http://ns.adobe.com/adept}licenseToken")
-  ebook_url = rii.find("{http://ns.adobe.com/adept}src").text
-  metadata = rii.find("{http://ns.adobe.com/adept}metadata")
-  title = metadata.find("{http://purl.org/dc/elements/1.1/}title").text
-  return (title, ebook_url, etree.tostring(license))
 
 def get_ebook(args, data):
   logging.info("Opening {} ...".format(args.filename))
@@ -117,23 +46,17 @@ def get_ebook(args, data):
     logging.info("Failed to init license")
     return
 
-  ff_request = build_fulfillment_request(acsm_content, a)
-
-  url = "{0}/Fulfill".format(operator)
-  headers = {"Content-type": "application/vnd.adobe.adept+xml"}
   logging.info("Sending fullfilment request to {}".format(url))
-
-  ff_reply = send(url, ff_request, args.dry)
+  try: 
+    ff = Fulfillment(acsm_content, a, operator)
+    title, ebook_url, license_token = ff.call(args.dry)
+  except Exception:
+    logging.exception("Error during fulfillment")
+    return
 
   if args.dry:
     return
  
-  try: 
-    title, ebook_url, license_token = parse_fulfillment_reply(ff_reply)
-  except Exception:
-    logging.error("Error while parsing fulfillment reply: ".format(ff_reply))
-    return
-
   # Get epub URL and download it
   logging.info("Downloading {} from {} ...".format(title, ebook_url))
   try:

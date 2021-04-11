@@ -49,7 +49,7 @@ if __name__ == "__main__":
   parser_aset.add_argument('urn', help='The user urn')
   parser_aset.set_defaults(func=account.set_default_account)
 
-  parser_device = subparsers.add_parser('device', help='Manage devices')
+  parser_device = subparsers.add_parser('device', help='Manage devices for current user')
   device_sp = parser_device.add_subparsers()
   parser_dlist = device_sp.add_parser('list', help='list devices')
   parser_dlist.set_defaults(func=device.device_list)
