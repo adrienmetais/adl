@@ -15,7 +15,9 @@ create table devices (
   user_id text,
   device_key text,
   device_id text,
-  fingerprint text
+  fingerprint text,
+  device_name text,
+  device_type text
 );
 
 create table configuration (

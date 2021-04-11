@@ -1,6 +1,13 @@
 import sqlite3
 import base64
 
+from lxml import etree
+
+from xml_tools import ADEPT_NS, NSMAP, add_subelement
+import utils
+import login
+import device
+
 db_file = 'adl.db'
 
 class Config():
@@ -46,16 +53,6 @@ class Config():
     conn.commit() 
     conn.close()
 
-class Device():
-  def __init__(self):
-    self.device_key = None
-    self.device_id = None
-    self.fingerprint = None
-    self.type = 'standalone'
-
-  def __str__(self):
-    return "{}: {}".format(self.device_id, self.device_key)
-
 class Account():
   def __init__(self):
     self.sign_method = None
@@ -80,6 +77,11 @@ class Account():
     auth_cert = "Authentication certificate: {}".format(self.authentication_certificate)
     return '\n'.join([sign, auth, license, pkcs12, epk, lc, auth_cert])
 
+  def get_private_key(self):
+    d = self.get_device('local')
+    pk = utils.aes_decrypt(base64.b64decode(self.encryptedPK), base64.b64decode(d.device_key))
+    return pk
+
   def store(self):
     conn = sqlite3.connect(db_file)
     conn.text_factory = str
@@ -101,10 +103,19 @@ class Account():
       dph = (self.urn,
              d.device_key,
              d.device_id,
-             d.fingerprint)
-    c.execute("insert into devices values(?, ?, ?, ?)", dph)
+             d.fingerprint,
+             d.name,
+             d.type)
+    c.execute("insert into devices values(?, ?, ?, ?, ?, ?)", dph)
     conn.commit()
     conn.close()
+
+  def get_device(self, device_name):
+    #devices = device.get_all_devices(self.urn)
+    for d in self.devices:
+      if d.name == device_name:
+        return d
+    return None
 
 def get_all_accounts():
   accounts = []
@@ -120,11 +131,7 @@ def get_all_accounts():
     a.urn, a.sign_id, a.sign_method, akpub, akpriv, lkpub, lkpriv, a.pkcs12, a.encryptedPK, a.licenseCertificate = user
     a.auth_key = (akpriv, akpub)
     a.license_key = (lkpriv, lkpub)
-    devices = c.execute("select device_key, device_id from devices where user_id=?", (a.urn,))
-    for device in devices:
-      d = Device()
-      d.device_key, d.device_id = device
-      a.devices.append(d)
+    a.devices = device.get_all_devices(a.urn)
     accounts.append(a)
 
   conn.close()
@@ -135,6 +142,13 @@ def get_account(user_id):
   accounts = get_all_accounts()
   for a in accounts:
     if a.urn == user_id:
+      return a
+  return None
+
+def find_by_sign(sign):
+  accounts = get_all_accounts()
+  for a in accounts:
+    if a.sign_id == sign:
       return a
   return None
 
@@ -168,5 +182,4 @@ def cli_list(args, config):
     if a.urn == default:
       marker = '*'
     print("- {} {} - {} ({})".format(marker, a.urn, a.sign_id, a.sign_method))
-
 

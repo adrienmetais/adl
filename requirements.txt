@@ -3,3 +3,4 @@ ConfigParser
 requests
 lxml
 cryptography >= 1.4.0
+mock

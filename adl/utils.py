@@ -52,6 +52,17 @@ def aes_crypt(msg, key):
   ct = iv + encryptor.update(padded_data) + encryptor.finalize()
   return base64.b64encode(ct)
 
+def aes_decrypt(msg, key):
+  iv = os.urandom(16)
+  cipher = Cipher(algorithms.AES(key), modes.CBC(iv))
+  decryptor = cipher.decryptor()
+
+  data = decryptor.update(msg) + decryptor.finalize()
+  unpadder = padding.PKCS7(128).unpadder()
+  pt = unpadder.update(data) + unpadder.finalize()
+
+  return base64.b64encode(pt[16:])
+  
 def generate_key_pair():
   key = rsa.generate_private_key(
       backend=crypto_default_backend(),

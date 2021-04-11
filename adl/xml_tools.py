@@ -109,6 +109,7 @@ def add_subelement(element, name, text):
   e = etree.Element(name)
   e.text = text
   element.append(e)
+  return e
 
 def get_error(xml):
   tree_root = etree.fromstring(xml)

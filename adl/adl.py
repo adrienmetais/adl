@@ -20,6 +20,7 @@ import logging
 import login
 import epub_get
 import account
+import device
 
 if __name__ == "__main__":
   parser = argparse.ArgumentParser(description='Manipulate ACSM files')
@@ -43,6 +44,14 @@ if __name__ == "__main__":
   parser_aset = account_sp.add_parser('use', help='Set account to use')
   parser_aset.add_argument('urn', help='The user urn')
   parser_aset.set_defaults(func=account.set_default_account)
+
+  parser_device = subparsers.add_parser('device', help='Manage devices')
+  device_sp = parser_device.add_subparsers()
+  parser_dlist = device_sp.add_parser('list', help='list devices')
+  parser_dlist.set_defaults(func=device.device_list)
+  parser_detect = device_sp.add_parser('register', help='Register reader')
+  parser_detect.add_argument('mountpoint', help='Reader root fs mountpoint')
+  parser_detect.set_defaults(func=device.device_register)
 
   # Future options could include:
   # * Register to Adobe

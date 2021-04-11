@@ -11,8 +11,9 @@ What it does
 ------------
 - Allow you to login with your Adobe ID. You can log in as anonymous with some restrictions (see below)
 - Download your epub from the acsm file. However, if your file is protected by DRM, you will obtain an encrypted epub.
+- Activate a new ebook reader that supports ADEPT (Adobe) DRM
 
-You may wonder how useful it is to be able to download an encrypted book ! Well, hopefully in the (near ?) future, I will figure out the last piece, which is to transfer it onto your reader in such a way that it can actually read it. 
+You may wonder how useful it is to be able to download an encrypted book ! Well, hopefully in the (near ?) future, I will finish the last piece, which is to transfer it onto your reader in such a way that it can actually read it. 
 
 What it does not yet do
 -----------------------
@@ -62,4 +63,14 @@ And change the currently used account with::
 
   ./adl.py account use <account urn>
 
+Activate a device
+-----------------
 
+Mount the root of your device somewhere, and select the account you want to use. Then::
+
+  ./adl.py device register <mountpoint>
+
+Several cases may occur:
+- The device has never been activated with ADE (or adl): activate the device
+- The device has already been activated for your user: nothing will be done on your device, but adl's db will be updated
+- The device has already been activated for an unknown user: nothing will be done, to avoid losing access to books on the device

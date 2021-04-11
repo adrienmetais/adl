@@ -75,7 +75,7 @@ def log_in(config, acc, operator, dry_mode):
 
 def build_fulfillment_request(acsm_content, acc):
   # TODO: choose appropriate device ?
-  dev = acc.devices[0]
+  dev = acc.get_device('local')
 
   ff = etree.Element("{%s}fulfill" % ADEPT_NS, nsmap=NSMAP)
   add_subelement(ff, "user", acc.urn)
