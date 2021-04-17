@@ -13,11 +13,11 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import zipfile
-import StringIO
+import io
 import argparse
 
 def patch(raw_data, rights_content):
-  buf = StringIO.StringIO(raw_data)
+  buf = io.StringIO(raw_data)
   z = zipfile.ZipFile(buf, mode='a')
   z.writestr("META-INF/rights.xml", rights_content)
   z.close()

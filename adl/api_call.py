@@ -3,28 +3,24 @@ import requests
 import base64
 from lxml import etree
 
-from xml_tools import ADEPT_NS, NSMAP, sign_xml, add_subelement, get_error
-import utils
+from .xml_tools import ADEPT_NS, NSMAP, sign_xml, add_subelement, get_error
+from . import utils
 
 class APICall:
   def __init__(self):
     self.method = "post"
 
-  def call(self, dry_mode):
+  def call(self):
     content = self.build()
     url = self.get_url()
 
-    reply = self.send(url, content, dry_mode)
+    reply = self.send(url, content)
 
     return self.parse(reply)
 
-  def send(self, url, data_str, dry_mode):
+  def send(self, url, data_str):
     headers = {'Content-type': 'application/vnd.adobe.adept+xml'}
     logging.debug(data_str)
-
-    if dry_mode:
-      logging.info("(Dry run - Not sent)")
-      return 
 
     try:
       if self.method == "post":
@@ -239,7 +235,7 @@ class SignInDirect(APICall):
     if reply is None:
       return False, None, None, None, None
 
-    if 'error' in reply:
+    if b'error' in reply:
       error = get_error(reply)
       logging.error(error)
       return False, None, None, None, None

@@ -1,29 +1,17 @@
-import requests
 import logging
-import os
 import base64
-import datetime
-import struct
-import hashlib
-import getpass
 
 from cryptography.hazmat.primitives.asymmetric import padding as asym_padding
 from cryptography import x509
 
-from lxml import etree
+from .bom import Account, Device
+from . import utils
+from . import device
+from .api_call import ActivationInit, AuthenticationInit, SignInDirect
+from . import data
 
-from xml_tools import ADEPT_NS, NSMAP, sign_xml, add_subelement, get_error
-from account import Account
-import utils
-import device
-from api_call import Activate, ActivationInit, AuthenticationInit, SignInDirect
-
-# TODO: enforce dry mode
-def login(args, data):
+def login(user, password):
   acc = Account()
-  password = None
-  if args.user is not None:
-    password = getpass.getpass()
 
   if data.config is None:
     data.config = Config()
@@ -50,18 +38,18 @@ def login(args, data):
 
 def activation_init():
   actinit = ActivationInit()
-  return actinit.call(False)
+  return actinit.call()
 
 ########## Auth Info ###########
 
 def authentication_init():
   authinit = AuthenticationInit()
-  return authinit.call(False)
+  return authinit.call()
 
 ######### Sign In ###########
 
 def sign_in(data, acc, user, password):
-  d = device.Device()
+  d = Device()
   d.generate_key()
   d.generate_fingerprint()
 
@@ -82,22 +70,20 @@ def sign_in(data, acc, user, password):
   #  password (UTF-8)
 
   binary_device_key = base64.b64decode(d.device_key)
-  auth_data = [ord(i) for i in binary_device_key]
+  auth_data = bytearray(binary_device_key)
   if user is None:
     auth_data.append(0) # null username
   else:
-    # TODO: should be utf8
     auth_data.append(len(user))
-    auth_data.extend([ord(i) for i in user])
+    auth_data.extend(user.encode('utf-8'))
 
   if password is None:
     auth_data.append(0) # null password
   else:
-    # TODO: should be utf8
     auth_data.append(len(password))
-    auth_data.extend([ord(i) for i in password])
+    auth_data.extend(password.encode('utf-8'))
 
-  serialized_auth_data = "".join([chr(i) for i in auth_data])
+  serialized_auth_data = bytes(auth_data) #"".join([chr(i) for i in auth_data])
 
   # Get certificate
   certificate = x509.load_der_x509_certificate(base64.b64decode(data.config.authentication_certificate))
@@ -117,7 +103,7 @@ def sign_in(data, acc, user, password):
   encrypted_lkp = (utils.aes_crypt(base64.b64decode(acc.license_key[0]), binary_device_key), acc.license_key[1])
 
   signin = SignInDirect(acc.sign_method, encrypted_auth_data, encrypted_akp, encrypted_lkp)
-  success, acc.urn, acc.pkcs12, acc.encryptedPK, acc.licenseCertificate = signin.call(False) #TODO dry mode
+  success, acc.urn, acc.pkcs12, acc.encryptedPK, acc.licenseCertificate = signin.call() 
 
   return success
 
