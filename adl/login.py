@@ -48,19 +48,7 @@ def authentication_init():
 
 ######### Sign In ###########
 
-def sign_in(data, acc, user, password):
-  d = Device()
-  d.generate_key()
-  d.generate_fingerprint()
-
-  # Only supported methods for the moment
-  if user is None or password is None:
-    acc.sign_method = "anonymous"
-    logging.warning("WARNING: logging in as anonymous - please see README for risks")
-  else:
-    acc.sign_method = "AdobeID"
-    acc.sign_id = user
-
+def generate_auth_data(user, password, binary_device_key):
   # device key
   # 0 if no username, else:
   #  Size of username
@@ -69,7 +57,6 @@ def sign_in(data, acc, user, password):
   #  Size of password
   #  password (UTF-8)
 
-  binary_device_key = base64.b64decode(d.device_key)
   auth_data = bytearray(binary_device_key)
   if user is None:
     auth_data.append(0) # null username
@@ -83,7 +70,25 @@ def sign_in(data, acc, user, password):
     auth_data.append(len(password))
     auth_data.extend(password.encode('utf-8'))
 
-  serialized_auth_data = bytes(auth_data) #"".join([chr(i) for i in auth_data])
+  serialized_auth_data = bytes(auth_data)
+
+  return serialized_auth_data
+
+def sign_in(data, acc, user, password):
+  d = Device()
+  d.generate_key()
+  d.generate_fingerprint()
+
+  # Only supported methods for the moment
+  if user is None or password is None:
+    acc.sign_method = "anonymous"
+    logging.warning("WARNING: logging in as anonymous - please see README for risks")
+  else:
+    acc.sign_method = "AdobeID"
+    acc.sign_id = user
+
+  binary_device_key = base64.b64decode(d.device_key)
+  serialized_auth_data = generate_auth_data(user, password, binary_device_key)
 
   # Get certificate
   certificate = x509.load_der_x509_certificate(base64.b64decode(data.config.authentication_certificate))

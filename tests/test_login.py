@@ -25,6 +25,16 @@ class TestLogin(unittest.TestCase):
       certificate = login.authentication_init()
       self.assertEqual(certificate, "TITI")
 
+  def test_auth_data(self):
+    device_key = "LbG+lRrAT2fsj1rQCfsWag=="
+    expected = b"LbG+lRrAT2fsj1rQCfsWagAA"
+    auth_data = login.generate_auth_data(None, None, base64.b64decode(device_key))
+    self.assertEqual(base64.b64encode(auth_data), expected)
+
+    expected = b"LbG+lRrAT2fsj1rQCfsWag50b3RvQGFkb2JlLmNvbQtTdVAzUlMzY3IzdA=="
+    auth_data = login.generate_auth_data("toto@adobe.com", "SuP3RS3cr3t", base64.b64decode(device_key))
+    self.assertEqual(base64.b64encode(auth_data), expected)
+
   def test_sign(self):
     a = bom.Account()
     c = bom.Config()
