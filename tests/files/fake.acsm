@@ -1,0 +1,28 @@
+<fulfillmentToken fulfillmentType="buy" auth="user" xmlns="http://ns.adobe.com/adept">
+  <distributor>urn:uuid:1</distributor>
+  <operatorURL>https://acs4.kobo.com/fulfillment</operatorURL>
+  <transaction>6</transaction>
+  <expiration>2</expiration>
+  <resourceItemInfo>
+    <resource>urn:uuid:4</resource>
+    <resourceItem>0</resourceItem>
+    <metadata>
+      <dc:title xmlns:dc="http://purl.org/dc/elements/1.1/">King of Ashes: Book One</dc:title>
+      <dc:creator xmlns:dc="http://purl.org/dc/elements/1.1/">Raymond E. Feist</dc:creator>
+      <dc:publisher xmlns:dc="http://purl.org/dc/elements/1.1/">HarperCollins Publishers</dc:publisher>
+      <dc:identifier xmlns:dc="http://purl.org/dc/elements/1.1/">urn:uuid:4c709510-3823-4a0c-b82a-8be95f7b3deb</dc:identifier>
+      <dc:format xmlns:dc="http://purl.org/dc/elements/1.1/">application/epub+zip</dc:format>
+      <dc:language xmlns:dc="http://purl.org/dc/elements/1.1/">en</dc:language>
+    </metadata>
+    <licenseToken>
+      <resource>urn:uuid:1</resource>
+      <permissions>
+        <display/>
+        <excerpt/>
+        <print/>
+        <play/>
+      </permissions>
+    </licenseToken>
+  </resourceItemInfo>
+  <hmac>mY/y1vMcN7rybGGSgkXkS3d76I8=</hmac>
+</fulfillmentToken>

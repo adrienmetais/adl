@@ -55,7 +55,7 @@ class FFAuth(APICall):
     ff = etree.Element("{%s}credentials" % ADEPT_NS, nsmap=NSMAP)
     add_subelement(ff, "user", self.acc.urn)
 
-    dev = acc.get_device('local')
+    dev = self.acc.get_device('local')
     certificate = utils.extract_cert_from_pkcs12(self.acc, dev.device_key)
 
     add_subelement(ff, "certificate", base64.b64encode(certificate))
@@ -83,7 +83,7 @@ class InitLicense(APICall):
     add_subelement(ff, "expiration", utils.get_expiration_date())
     add_subelement(ff, "user", self.acc.urn)
 
-    dev = acc.get_device('local')
+    dev = self.acc.get_device('local')
     pk = utils.extract_pk_from_pkcs12(self.acc, dev.device_key)
     ff = sign_xml(ff, pk)
 
@@ -115,7 +115,7 @@ class Fulfillment(APICall):
 
     ff.append(self.acsm_content)
 
-    pk = utils.extract_pk_from_pkcs12(acc, dev.device_key)
+    pk = utils.extract_pk_from_pkcs12(self.acc, dev.device_key)
     ff = sign_xml(ff, pk)
 
     return etree.tostring(ff)
@@ -132,7 +132,7 @@ class Fulfillment(APICall):
     metadata = rii.find("{http://ns.adobe.com/adept}metadata")
     title = metadata.find("{http://purl.org/dc/elements/1.1/}title").text
 
-    return (title, ebook_url, etree.tostring(license))
+    return (title, ebook_url, license)
 
 ###################################
 class Activate(APICall):

@@ -6,8 +6,6 @@ from lxml import etree
 
 from xml_tools import ADEPT_NS, NSMAP, add_subelement
 import utils
-import login
-import device
 
 class Config():
   def __init__(self):
