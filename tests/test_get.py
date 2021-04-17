@@ -1,5 +1,5 @@
-from context import epub_get, account, db, utils, device, xml_tools
-from mock import patch, MagicMock, call
+from context import epub_get, account, db, utils, device, xml_tools, patch_epub
+from mock import patch, MagicMock, call, mock_open
 
 import unittest
 from lxml import etree
@@ -87,6 +87,49 @@ class TestGet(unittest.TestCase):
 
     utils.extract_pk_from_pkcs12, xml_tools.generate_signature = backup
 
+  def test_get(self):
+    d = device.Device()
+    d.name = "local"
+
+    a = account.Account()
+    a.urn = "toto"
+    a.devices = [d]
+
+    c = account.Config()
+    c.current_user = "toto"
+
+    data = db.DBData()
+    data.config = c
+    data.accounts = [a]
+
+    args = argparse.Namespace()
+    args.filename = 'files/fake.acsm'
+    args.dry = False
+
+    license_token = etree.Element("licenseToken")
+    license_token.text = "toto"
+
+    backup = epub_get.log_in, epub_get.fulfill, epub_get.generate_rights_xml, patch_epub.patch 
+    epub_content = 'Zipped book content'
+    rights_content = "<rights>GOD</rights>"
+    book_title = "Book Title"
+
+    epub_get.log_in = MagicMock(return_value=True)
+    epub_get.fulfill = MagicMock(return_value=(book_title, "http://books.com/mybook.epub", license_token))
+    epub_get.generate_rights_xml = MagicMock(return_value=rights_content)
+    patch_epub.patch = MagicMock(return_value = "{}{}".format(epub_content, rights_content))
+
+    with patch('requests.get') as mock_request:
+      mock_request.return_value.status_code = 200
+      mock_request.return_value.text = epub_content
+      
+      with patch('__builtin__.open', mock_open()) as mo:
+        epub_get.get_ebook(args, data)
+        mo.assert_called_with("{}.epub".format(book_title), 'w')
+        mo().write.assert_called_with("{}{}".format(epub_content, rights_content))
+    
+      mock_request.assert_called_with('http://books.com/mybook.epub')
+    epub_get.log_in, epub_get.fulfill, epub_get.generate_rights_xml, patch_epub.patch = backup
   
 
 if __name__ == '__main__':

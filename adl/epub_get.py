@@ -77,10 +77,8 @@ def get_ebook(args, data):
     epub = r.content
 
     # A file containing the license token must be added to the epub
-    logging.info("Creating rights.xml")
-    rights_xml = generate_rights_xml(license_token)    
-
     logging.info("Patching epub ...")
+    rights_xml = generate_rights_xml(license_token)    
     patched_epub = patch_epub.patch(epub, rights_xml)
 
     # Write file to disc
