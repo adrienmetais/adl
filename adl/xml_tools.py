@@ -18,7 +18,7 @@ import re
 import hashlib
 import base64
 
-from crypto import RSAHandler
+from .crypto import RSAHandler
 
 from cryptography.hazmat.primitives.asymmetric import padding, utils
 from cryptography.hazmat.primitives import hashes
@@ -38,7 +38,7 @@ def add_byte(o, i):
 
 def add_str(o, s):
   o = o + struct.pack('>H', len(s))
-  o = o + s
+  o = o + s.encode('ascii')
   return o
 
 def parse_namespace(tag, default_ns):
@@ -49,7 +49,7 @@ def parse_namespace(tag, default_ns):
     return tag, default_ns
 
 def serialize(node):
-  out = ""
+  out = bytes()
   name, ns = parse_namespace(node.tag, ADEPT_NS)
   if name in ["hmac", "signature"]:
     return ""
@@ -77,7 +77,7 @@ def xml_hash(s):
   h.update(s)
   d = h.hexdigest()
   # Force big endian
-  return "".join(struct.pack('>I', int(d[i*8:i*8+8], 16)) for i in range(5))
+  return b"".join(struct.pack('>I', int(d[i*8:i*8+8], 16)) for i in range(5))
 
 # key as byte array
 def encrypt(hxml, key):

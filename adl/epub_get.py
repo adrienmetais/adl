@@ -1,14 +1,14 @@
 import logging
 import requests
+import base64
 from lxml import etree
 
-from xml_tools import ADEPT_NS, NSMAP, sign_xml, add_subelement, get_error
-import utils
-import patch_epub
-import account
-import base64
-
-from api_call import FFAuth, InitLicense, Fulfillment
+from .xml_tools import ADEPT_NS, NSMAP, sign_xml, add_subelement, get_error
+from . import utils
+from . import patch_epub
+from . import account
+from . import data
+from .api_call import FFAuth, InitLicense, Fulfillment
 
 def parse_acsm(acsm_filename):
   fftoken = etree.parse(acsm_filename)
@@ -18,14 +18,14 @@ def parse_acsm(acsm_filename):
 
   return operator, token_root
 
-def log_in(config, acc, operator, dry_mode):
+def log_in(config, acc, operator):
   ffauth = FFAuth(operator, acc, config)
-  result = ffauth.call(dry_mode)
+  result = ffauth.call()
 
-  if dry_mode or result:
+  if result:
     init_license = InitLicense(operator, acc)
-    result = init_license.call(dry_mode)
-    return dry_mode or result
+    result = init_license.call()
+    return result
   else:
     logging.info(get_error(result))
     return False
@@ -43,13 +43,13 @@ def generate_rights_xml(license_token):
   
   return etree.tostring(rights, doctype='<?xml version="1.0"?>')
 
-def fulfill(acsm_content, a, operator, dry_mode):
+def fulfill(acsm_content, a, operator):
   logging.info("Sending fullfilment request")
   ff = Fulfillment(acsm_content, a, operator)
-  return ff.call(dry_mode)
+  return ff.call()
 
-def get_ebook(args, data):
-  logging.info("Opening {} ...".format(args.filename))
+def get_ebook(filename):
+  logging.info("Opening {} ...".format(filename))
 
   a = data.get_current_account()
   if a is None:
@@ -59,17 +59,14 @@ def get_ebook(args, data):
   try:
     # The ACSM file contains a "fulfillment URL" that we must query
     # in order to get the real file URL
-    operator, acsm_content = parse_acsm(args.filename)
+    operator, acsm_content = parse_acsm(filename)
 
-    if not log_in(data.config, a, operator, args.dry):
+    if not log_in(data.config, a, operator):
       logging.info("Failed to init license")
       return
 
-    title, ebook_url, license_token = fulfill(acsm_content, a, operator, args.dry)
+    title, ebook_url, license_token = fulfill(acsm_content, a, operator)
 
-    if args.dry:
-      return
-   
     # Get epub URL and download it
     logging.info("Downloading {} from {} ...".format(title, ebook_url))
     r = requests.get(ebook_url)
@@ -77,20 +74,18 @@ def get_ebook(args, data):
     epub = r.content
 
     # A file containing the license token must be added to the epub
-    logging.info("Creating rights.xml")
-    rights_xml = generate_rights_xml(license_token)    
-
     logging.info("Patching epub ...")
+    rights_xml = generate_rights_xml(license_token)    
     patched_epub = patch_epub.patch(epub, rights_xml)
 
     # Write file to disc
     # TODO: configurable output ?
-    filename = "{0}.epub".format(title)
-    logging.info("Writing {} ...".format(filename))
-    with open(filename, "w") as epub_file:
+    epub_filename = "{0}.epub".format(title)
+    logging.info("Writing {} ...".format(epub_filename))
+    with open(epub_filename, "w") as epub_file:
       epub_file.write(patched_epub)
 
-    logging.info("Successfully downloaded file {}".format(filename))
+    logging.info("Successfully downloaded file {}".format(epub_filename))
   except:
     logging.exception("Error when downloading book !")
 

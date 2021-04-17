@@ -31,6 +31,8 @@ d2i_RSAPrivateKey = F(RSA_p, 'd2i_RSAPrivateKey',
 RSA_size = F(c_int, 'RSA_size', [RSA_p])
 RSA_private_encrypt = F(c_int, 'RSA_private_encrypt',
                       [c_int, c_char_p, c_char_p, RSA_p, c_int])
+RSA_private_decrypt = F(c_int, 'RSA_private_decrypt',
+                      [c_int, c_char_p, c_char_p, RSA_p, c_int])
 RSA_free = F(None, 'RSA_free', [RSA_p])
 
 ERR_get_error = F(c_long, 'ERR_get_error', [])
@@ -54,6 +56,18 @@ class RSAHandler(object):
         err = ERR_error_string(ERR_get_error(), err)
         print(err)
         raise Exception('RSA encryption failed')
+      return to
+
+  def decrypt(self, from_):
+      rsa = self._rsa
+      to = create_string_buffer(RSA_size(rsa))
+      tolen = c_int();
+      result = RSA_private_decrypt(len(from_), from_, to, rsa, RSA_PKCS1_PADDING)
+      if result == -1:
+        err = create_string_buffer(256)
+        err = ERR_error_string(ERR_get_error(), err)
+        print(err)
+        raise Exception('RSA decryption failed')
       return to
 
   def __del__(self):

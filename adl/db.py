@@ -2,8 +2,7 @@ import sqlite3
 import os
 import logging
 
-from account import Account, Config
-from device import Device
+from .bom import Account, Config, Device
 
 class DBData:
   def __init__(self):
@@ -185,12 +184,12 @@ class DB:
 
   def create_tables(self):
     c = self.connector.cursor()
-    for table_name, columns in self.DB_TABLES.items():
+    for table_name, columns in list(self.DB_TABLES.items()):
       if self.check_table_exists(table_name):
         continue
 
       col_cmd = []
-      for col_name, col_type in columns.items():
+      for col_name, col_type in list(columns.items()):
         if col_name != "pk":
           col_cmd.append("{} {}".format(col_name, col_type))
         else:
