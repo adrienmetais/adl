@@ -52,7 +52,7 @@ def serialize(node):
   out = bytes()
   name, ns = parse_namespace(node.tag, ADEPT_NS)
   if name in ["hmac", "signature"]:
-    return ""
+    return b""
   out = add_byte(out, BEGIN_ELEMENT)
   out = add_str(out, ns)
   out = add_str(out, name)

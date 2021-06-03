@@ -82,7 +82,7 @@ def get_ebook(filename):
     # TODO: configurable output ?
     epub_filename = "{0}.epub".format(title)
     logging.info("Writing {} ...".format(epub_filename))
-    with open(epub_filename, "w") as epub_file:
+    with open(epub_filename, "wb") as epub_file:
       epub_file.write(patched_epub)
 
     logging.info("Successfully downloaded file {}".format(epub_filename))

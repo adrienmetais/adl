@@ -239,7 +239,9 @@ class DB:
       rows = c.execute("select device_name, device_key, device_id, fingerprint, device_type from devices where user_id=?", (a.urn,))
       for dev in rows.fetchall():
         d = Device()
-        d.name, d.device_key, d.device_id, d.fingerprint, d.type = dev
+        d.name, device_key, d.device_id, d.fingerprint, d.type = dev
+        if device_key is not None:
+          d.device_key = device_key.encode('ascii')
         a.devices.append(d)
 
     return accounts

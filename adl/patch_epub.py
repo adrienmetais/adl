@@ -17,7 +17,7 @@ import io
 import argparse
 
 def patch(raw_data, rights_content):
-  buf = io.StringIO(raw_data)
+  buf = io.BytesIO(raw_data)
   z = zipfile.ZipFile(buf, mode='a')
   z.writestr("META-INF/rights.xml", rights_content)
   z.close()

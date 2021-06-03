@@ -120,7 +120,7 @@ class TestGet(unittest.TestCase):
       
       with patch('builtins.open', mock_open()) as mo:
         epub_get.get_ebook(filename)
-        mo.assert_called_with("{}.epub".format(book_title), 'w')
+        mo.assert_called_with("{}.epub".format(book_title), 'wb')
         mo().write.assert_called_with("{}{}".format(epub_content, rights_content))
     
       mock_request.assert_called_with('http://books.com/mybook.epub')
