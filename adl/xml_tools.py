@@ -37,8 +37,9 @@ def add_byte(o, i):
   return o
 
 def add_str(o, s):
-  o = o + struct.pack('>H', len(s))
-  o = o + s.encode('ascii')
+  es = s.encode("utf-8")
+  o = o + struct.pack('>H', len(es))
+  o = o + es
   return o
 
 def parse_namespace(tag, default_ns):

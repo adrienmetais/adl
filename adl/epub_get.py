@@ -3,7 +3,7 @@ import requests
 import base64
 from lxml import etree
 
-from .xml_tools import ADEPT_NS, NSMAP, sign_xml, add_subelement, get_error
+from .xml_tools import ADEPT_NS, NSMAP, add_subelement, get_error
 from . import utils
 from . import patch_epub
 from . import account

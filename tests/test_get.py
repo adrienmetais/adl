@@ -47,8 +47,8 @@ class TestGet(unittest.TestCase):
 
       epub_get.log_in(c, a, "http://fairyland.com")
 
-      auth_call = call('http://fairyland.com/Auth', data=b'<credentials xmlns="http://ns.adobe.com/adept"><user>toto</user><certificate>REVBREJFRUY=</certificate><licenseCertificate>LICENSECERT</licenseCertificate><authenticationCertificate>AUTHCERT</authenticationCertificate></credentials>', headers={'Content-type': 'application/vnd.adobe.adept+xml'})
-      initlicense_call = call('http://adeactivate.adobe.com/adept/InitLicenseService', data=b'<licenseServiceRequest xmlns="http://ns.adobe.com/adept" identity="user"><operatorURL>http://fairyland.com</operatorURL><nonce>11Mo2AAAAAA=</nonce><expiration>2021-04-15T23:27:34-00:00</expiration><user>toto</user><signature>0123456789ABCDEF</signature></licenseServiceRequest>', headers={'Content-type': 'application/vnd.adobe.adept+xml'})
+      auth_call = call('http://fairyland.com/Auth', data=b'<credentials xmlns="http://ns.adobe.com/adept"><user>toto</user><certificate>REVBREJFRUY=</certificate><licenseCertificate>LICENSECERT</licenseCertificate><authenticationCertificate>AUTHCERT</authenticationCertificate></credentials>', headers={'Content-type': 'application/vnd.adobe.adept+xml', 'charset': 'utf-8'})
+      initlicense_call = call('http://adeactivate.adobe.com/adept/InitLicenseService', data=b'<licenseServiceRequest xmlns="http://ns.adobe.com/adept" identity="user"><operatorURL>http://fairyland.com</operatorURL><nonce>11Mo2AAAAAA=</nonce><expiration>2021-04-15T23:27:34-00:00</expiration><user>toto</user><signature>0123456789ABCDEF</signature></licenseServiceRequest>', headers={'Content-type': 'application/vnd.adobe.adept+xml', 'charset': 'utf-8'})
       rfs = call().raise_for_status()
       mock_request.assert_has_calls([auth_call, rfs, initlicense_call, rfs])
 

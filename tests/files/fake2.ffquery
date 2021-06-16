@@ -1,0 +1,33 @@
+<fulfill xmlns="http://ns.adobe.com/adept">
+  <user>urn:uuid:d531cb1a-6ebf-42e6-9c05-156069bc0ef2</user>
+  <device>urn:uuid:ba81c9cc-4b4b-48ce-88a8-7a63fe4c2473</device>
+  <deviceType>standalone</deviceType>
+  <fulfillmentToken fulfillmentType="buy" auth="user">
+    <distributor>urn:uuid:18fe3822-eb24-4fd1-8f6c-e63140c013ca</distributor>
+    <operatorURL>http://mybooks.adl.com:8080/fulfillment</operatorURL>
+    <transaction>d9effa0f-33f6-49af-a446-deacb7fbb2b6</transaction>
+    <expiration>2019-07-27T22:24:58-04:00</expiration>
+    <resourceItemInfo>
+      <resource>urn:uuid:53b7a3e2-cfca-468a-85eb-38b40ffe7b34</resource>
+      <resourceItem>0</resourceItem>
+      <metadata>
+        <dc:title xmlns:dc="http://purl.org/dc/elements/1.1/">Sœur Calamity</dc:title>
+        <dc:creator xmlns:dc="http://purl.org/dc/elements/1.1/">Popeye</dc:creator>
+        <dc:publisher xmlns:dc="http://purl.org/dc/elements/1.1/">Random House Children's Books</dc:publisher>
+        <dc:identifier xmlns:dc="http://purl.org/dc/elements/1.1/">urn:uuid:53b7a3e2-cfca-468a-85eb-38b40ffe7b34</dc:identifier>
+        <dc:format xmlns:dc="http://purl.org/dc/elements/1.1/">application/epub+zip</dc:format>
+        <dc:language xmlns:dc="http://purl.org/dc/elements/1.1/">en-US</dc:language>
+      </metadata>
+      <licenseToken>
+        <resource>urn:uuid:53b7a3e2-cfca-468a-85eb-38b40ffe7b34</resource>
+        <permissions>
+          <display/>
+          <excerpt/>
+          <print/>
+          <play/>
+        </permissions>
+      </licenseToken>
+    </resourceItemInfo>
+    <hmac>UEBTnI/UIyKM7qXHYTMCDkuZTWE=</hmac>
+  </fulfillmentToken>
+</fulfill>

@@ -19,7 +19,7 @@ class APICall:
     return self.parse(reply)
 
   def send(self, url, data_str):
-    headers = {'Content-type': 'application/vnd.adobe.adept+xml'}
+    headers = {'Content-type': 'application/vnd.adobe.adept+xml', 'charset':'utf-8'}
     logging.debug(data_str)
 
     try:
@@ -114,7 +114,7 @@ class Fulfillment(APICall):
     pk = utils.extract_pk_from_pkcs12(self.acc, dev.device_key)
     ff = sign_xml(ff, pk)
 
-    return etree.tostring(ff)
+    return etree.tostring(ff,encoding='unicode').encode('utf-8')
 
   def parse(self, ff_reply):
     if ff_reply is None:
