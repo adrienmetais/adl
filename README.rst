@@ -38,7 +38,7 @@ Login
 -----
 Use::
 
-  ./adl.py login <-u adobeID>
+  ./adl.py login -u <adobeID>
 
 You only need to login once, to exchange encryption keys.
 
