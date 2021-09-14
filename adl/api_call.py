@@ -120,6 +120,11 @@ class Fulfillment(APICall):
     if ff_reply is None:
       return (None, None, None)
 
+    if 'error' in ff_reply:
+      error = get_error(ff_reply)
+      logging.error(error)
+      return None, None, None
+
     tree_root = etree.fromstring(ff_reply)
     ff = tree_root.find("{http://ns.adobe.com/adept}fulfillmentResult")
     rii = ff.find("{http://ns.adobe.com/adept}resourceItemInfo")
@@ -235,7 +240,7 @@ class SignInDirect(APICall):
     if reply is None:
       return False, None, None, None, None
 
-    if b'error' in reply:
+    if 'error' in reply:
       error = get_error(reply)
       logging.error(error)
       return False, None, None, None, None
