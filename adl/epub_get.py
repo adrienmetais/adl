@@ -67,6 +67,9 @@ def get_ebook(filename):
 
     title, ebook_url, license_token = fulfill(acsm_content, a, operator)
 
+    if ebook_url is None:
+      raise Exception("Fulfillment error")
+
     # Get epub URL and download it
     logging.info("Downloading {} from {} ...".format(title, ebook_url))
     r = requests.get(ebook_url)

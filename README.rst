@@ -31,6 +31,16 @@ License
 -------
 This tool is published under the GPLv3
 
+Requirements
+============
+
+- python 3.6
+
+Install dependencies::
+
+  pip install -r requirements.txt
+
+
 How to use
 ==========
 

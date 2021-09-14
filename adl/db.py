@@ -38,7 +38,7 @@ class DBData:
     self.db.connect()
 
     try:
-      if find_account_by_urn(account_urn) is None:
+      if self.find_account_by_urn(account_urn) is None:
         logging.error("Unknown user")
       else:
         self.config.current_user = account_urn
@@ -52,7 +52,7 @@ class DBData:
     self.db.connect()
     
     try:
-      if find_account_by_urn(a.urn) is not None:
+      if self.find_account_by_urn(a.urn) is not None:
         logging.error("Account already exists - this should not happen")
       else:
         self.accounts.append(a)
@@ -73,11 +73,11 @@ class DBData:
 
     self.db.disconnect()
     
-  def add_device(self, a, d):
+  def add_device(self, urn, d):
     self.db.connect()
     
     try:
-      a = find_account_by_urn(a.urn)
+      a = self.find_account_by_urn(urn)
       if a is None:
         logging.error("Account does not exist - this should not happen")
       else:
@@ -85,7 +85,7 @@ class DBData:
           a.devices.append(d)
         self.db.add_device(a.urn, d)
     except Exception:
-      logging.error("Exception occurred when adding a device !")
+      logging.exception("Exception occurred when adding a device !")
 
     self.db.disconnect()
 
@@ -95,11 +95,13 @@ class DBData:
     try:
       if self.config is not None:
         # Not possible to update for the moment
-        logging.error("Config already exists - this should not happend")
+        logging.error("Config already exists - this should not happen")
       else:
         self.db.store_config(conf)
+
+      self.config = conf
     except Exception:
-      logging.error("Exception occurred during db load !")
+      logging.exception("Exception occurred during db store !")
 
     self.db.disconnect()
 
@@ -273,7 +275,7 @@ class DB:
           a.encryptedPK,
           a.licenseCertificate)
 
-    c.execute("insert into users values(?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", ph)
+    c.execute("insert into users(user_id, sign_id, sign_method, auth_pub, auth_priv, license_pub, license_priv, pkcs12, eplk, license_certificate)  values(?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", ph)
 
     self.connector.commit()
 
@@ -288,14 +290,14 @@ class DB:
   def add_device(self, account_urn, d):
     c = self.connector.cursor()
 
-    dph = (account.urn,
-           d.device_key,
+    dph = (account_urn,
+           d.device_key.decode('ascii'), # Base64 
            d.device_id,
            d.fingerprint,
            d.name,
            d.type)
 
-    c.execute("insert into devices values(?, ?, ?, ?, ?, ?)", dph)
+    c.execute("insert into devices(user_id, device_key, device_id, fingerprint, device_name, device_type) values(?, ?, ?, ?, ?, ?)", dph)
 
     self.connector.commit()
 

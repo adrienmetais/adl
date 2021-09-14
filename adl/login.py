@@ -4,7 +4,7 @@ import base64
 from cryptography.hazmat.primitives.asymmetric import padding as asym_padding
 from cryptography import x509
 
-from .bom import Account, Device
+from .bom import Account, Device, Config
 from . import utils
 from . import device
 from .api_call import ActivationInit, AuthenticationInit, SignInDirect
@@ -13,15 +13,16 @@ from . import data
 def login(user, password):
   acc = Account()
 
-  if data.config is None:
-    data.config = Config()
+  config = data.config
+  if config is None:
+    config = Config()
 
-  if not data.config.ready():
-    data.config.auth_url, data.config.userinfo_url, data.config.activation_certificate = activation_init()
-    data.config.authentication_certificate = authentication_init()
-    data.store_config()
+  if not config.ready():
+    config.auth_url, config.userinfo_url, config.activation_certificate = activation_init()
+    config.authentication_certificate = authentication_init()
+    data.store_config(config)
 
-  if not sign_in(data, acc, args.user, password):
+  if not sign_in(data, acc, user, password):
     logging.error('Sign in error')
     return
 
@@ -78,6 +79,7 @@ def sign_in(data, acc, user, password):
   d = Device()
   d.generate_key()
   d.generate_fingerprint()
+  d.name = 'local'
 
   # Only supported methods for the moment
   if user is None or password is None:
@@ -109,6 +111,10 @@ def sign_in(data, acc, user, password):
 
   signin = SignInDirect(acc.sign_method, encrypted_auth_data, encrypted_akp, encrypted_lkp)
   success, acc.urn, acc.pkcs12, acc.encryptedPK, acc.licenseCertificate = signin.call() 
+  
+  # Device list should be empty at this point
+  assert len(acc.devices) == 0
+  acc.devices.append(d)
 
   return success
 
