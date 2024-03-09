@@ -22,7 +22,7 @@ def make_nonce():
   return base64.b64encode(d)
 
 def get_expiration_date():
-  return datetime.datetime.strftime(datetime.datetime.now()+datetime.timedelta(minutes=30), "%Y-%m-%dT%H:%M:%S-00:00")
+  return datetime.datetime.strftime(datetime.datetime.now(datetime.timezone.utc)+datetime.timedelta(minutes=30), "%Y-%m-%dT%H:%M:%S-00:00")
 
 def extract_pk_from_pkcs12(acc, device_key):
   pk, _, _ = pkcs12.load_key_and_certificates(base64.b64decode(acc.pkcs12), device_key)
